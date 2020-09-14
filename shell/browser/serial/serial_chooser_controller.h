@@ -15,7 +15,6 @@
 #include "content/public/browser/serial_chooser.h"
 #include "content/public/browser/web_contents.h"
 #include "services/device/public/mojom/serial.mojom-forward.h"
-#include "shell/browser/api/electron_api_web_contents.h"
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
 
@@ -58,7 +57,7 @@ class SerialChooserController final
                  &SerialChooserContext::RemovePortObserver>
       observer_{this};
 
-  api::WebContents* api_web_contents_;
+  content::BrowserContext* browser_context_ = nullptr;
 
   std::vector<device::mojom::SerialPortInfoPtr> ports_;
 

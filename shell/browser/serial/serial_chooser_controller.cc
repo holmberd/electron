@@ -11,7 +11,7 @@
 #include "base/files/file_path.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
-#include "shell/browser/api/electron_api_web_contents.h"
+#include "shell/browser/api/electron_api_session.h"
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/common/gin_converters/callback_converter.h"
@@ -54,18 +54,14 @@ SerialChooserController::SerialChooserController(
     std::vector<blink::mojom::SerialPortFilterPtr> filters,
     content::SerialChooser::Callback callback)
     : filters_(std::move(filters)), callback_(std::move(callback)) {
-  api_web_contents_ = api::WebContents::From(
-      content::WebContents::FromRenderFrameHost(render_frame_host));
-
+  auto* web_contents =
+      content::WebContents::FromRenderFrameHost(render_frame_host);
   requesting_origin_ = render_frame_host->GetLastCommittedOrigin();
-  embedding_origin_ = api_web_contents_->web_contents()
-                          ->GetMainFrame()
-                          ->GetLastCommittedOrigin();
+  embedding_origin_ = web_contents->GetMainFrame()->GetLastCommittedOrigin();
 
-  auto* browser_context =
-      api_web_contents_->web_contents()->GetBrowserContext();
+  browser_context_ = web_contents->GetBrowserContext();
   chooser_context_ =
-      SerialChooserContextFactory::GetForBrowserContext(browser_context)
+      SerialChooserContextFactory::GetForBrowserContext(browser_context_)
           ->AsWeakPtr();
   DCHECK(chooser_context_);
   chooser_context_->GetPortManager()->GetDevices(base::BindOnce(
@@ -80,7 +76,13 @@ SerialChooserController::~SerialChooserController() {
 void SerialChooserController::OnPortAdded(
     const device::mojom::SerialPortInfo& port) {
   ports_.push_back(port.Clone());
-  api_web_contents_->Emit("serial-port-added", port.Clone());
+  if (!browser_context_) {
+    return;
+  }
+  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
+  if (session) {
+    session->Emit("serial-port-added", port.Clone());
+  }
 }
 
 void SerialChooserController::OnPortRemoved(
@@ -89,7 +91,11 @@ void SerialChooserController::OnPortRemoved(
       ports_.begin(), ports_.end(),
       [&port](const auto& ptr) { return ptr->token == port.token; });
   if (it != ports_.end()) {
-    api_web_contents_->Emit("serial-port-removed", port.Clone());
+    auto* session =
+        electron::api::Session::FromBrowserContext(browser_context_);
+    if (session) {
+      session->Emit("serial-port-removed", port.Clone());
+    }
     ports_.erase(it);
   }
 }
@@ -125,10 +131,15 @@ void SerialChooserController::OnGetDevices(
       ports_.push_back(std::move(port));
   }
 
-  bool prevent_default = api_web_contents_->Emit(
-      "select-serial-port", ports_,
-      base::BindOnce(&SerialChooserController::OnDeviceChosen,
-                     weak_factory_.GetWeakPtr()));
+  bool prevent_default = false;
+  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
+  if (session) {
+    prevent_default =
+        session->Emit("select-serial-port", ports_,
+                      base::AdaptCallbackForRepeating(base::BindOnce(
+                          &SerialChooserController::OnDeviceChosen,
+                          weak_factory_.GetWeakPtr())));
+  }
   if (!prevent_default) {
     RunCallback(/*port=*/nullptr);
   }
