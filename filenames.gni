@@ -305,6 +305,8 @@ filenames = {
     "shell/browser/serial/electron_serial_delegate.h",
     "shell/browser/serial/serial_chooser_context.cc",
     "shell/browser/serial/serial_chooser_context.h",
+    "shell/browser/serial/serial_chooser_context_factory.cc",
+    "shell/browser/serial/serial_chooser_context_factory.h",
     "shell/browser/serial/serial_chooser_controller.cc",
     "shell/browser/serial/serial_chooser_controller.h",
     "shell/browser/session_preferences.cc",

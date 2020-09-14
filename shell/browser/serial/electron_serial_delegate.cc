@@ -6,10 +6,18 @@
 
 #include <utility>
 
+#include "content/public/browser/web_contents.h"
 #include "shell/browser/serial/serial_chooser_context.h"
+#include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
 
 namespace electron {
+
+SerialChooserContext* GetChooserContext(content::RenderFrameHost* frame) {
+  auto* web_contents = content::WebContents::FromRenderFrameHost(frame);
+  auto* browser_context = web_contents->GetBrowserContext();
+  return SerialChooserContextFactory::GetForBrowserContext(browser_context);
+}
 
 ElectronSerialDelegate::ElectronSerialDelegate() = default;
 
@@ -32,22 +40,28 @@ bool ElectronSerialDelegate::CanRequestPortPermission(
 bool ElectronSerialDelegate::HasPortPermission(
     content::RenderFrameHost* frame,
     const device::mojom::SerialPortInfo& port) {
-  return true;
+  auto* web_contents = content::WebContents::FromRenderFrameHost(frame);
+  auto* browser_context = web_contents->GetBrowserContext();
+  auto* chooser_context =
+      SerialChooserContextFactory::GetForBrowserContext(browser_context);
+  return chooser_context->HasPortPermission(
+      frame->GetLastCommittedOrigin(),
+      web_contents->GetMainFrame()->GetLastCommittedOrigin(), port);
 }
 
 device::mojom::SerialPortManager* ElectronSerialDelegate::GetPortManager(
     content::RenderFrameHost* frame) {
-  return SerialChooserContext::GetInstance()->GetPortManager();
+  return GetChooserContext(frame)->GetPortManager();
 }
 
 void ElectronSerialDelegate::AddObserver(content::RenderFrameHost* frame,
                                          Observer* observer) {
-  return SerialChooserContext::GetInstance()->AddPortObserver(observer);
+  return GetChooserContext(frame)->AddPortObserver(observer);
 }
 
 void ElectronSerialDelegate::RemoveObserver(content::RenderFrameHost* frame,
                                             Observer* observer) {
-  return SerialChooserContext::GetInstance()->RemovePortObserver(observer);
+  return GetChooserContext(frame)->RemovePortObserver(observer);
 }
 
 }  // namespace electron

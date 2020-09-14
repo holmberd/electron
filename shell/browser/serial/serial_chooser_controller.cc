@@ -13,6 +13,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "shell/browser/api/electron_api_web_contents.h"
 #include "shell/browser/serial/serial_chooser_context.h"
+#include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/common/gin_converters/callback_converter.h"
 #include "shell/common/gin_helper/dictionary.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -56,7 +57,16 @@ SerialChooserController::SerialChooserController(
   api_web_contents_ = api::WebContents::From(
       content::WebContents::FromRenderFrameHost(render_frame_host));
 
-  chooser_context_ = SerialChooserContext::GetInstance()->AsWeakPtr();
+  requesting_origin_ = render_frame_host->GetLastCommittedOrigin();
+  embedding_origin_ = api_web_contents_->web_contents()
+                          ->GetMainFrame()
+                          ->GetLastCommittedOrigin();
+
+  auto* browser_context =
+      api_web_contents_->web_contents()->GetBrowserContext();
+  chooser_context_ =
+      SerialChooserContextFactory::GetForBrowserContext(browser_context)
+          ->AsWeakPtr();
   DCHECK(chooser_context_);
   chooser_context_->GetPortManager()->GetDevices(base::BindOnce(
       &SerialChooserController::OnGetDevices, weak_factory_.GetWeakPtr()));
@@ -96,6 +106,8 @@ void SerialChooserController::OnDeviceChosen(const std::string& port_id) {
         std::find_if(ports_.begin(), ports_.end(), [&port_id](const auto& ptr) {
           return ptr->token.ToString() == port_id;
         });
+    chooser_context_->GrantPortPermission(requesting_origin_, embedding_origin_,
+                                          *it->get());
     RunCallback(it->Clone());
   }
 }

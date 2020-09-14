@@ -48,6 +48,8 @@ class SerialChooserController final
 
   std::vector<blink::mojom::SerialPortFilterPtr> filters_;
   content::SerialChooser::Callback callback_;
+  url::Origin requesting_origin_;
+  url::Origin embedding_origin_;
 
   base::WeakPtr<SerialChooserContext> chooser_context_;
   ScopedObserver<SerialChooserContext,
