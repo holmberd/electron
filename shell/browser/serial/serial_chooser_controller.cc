@@ -172,4 +172,16 @@ void SerialChooserController::RunCallback(
   }
 }
 
+base::OnceClosure SerialChooserController::MakeCloseClosure() {
+  return base::BindOnce(&SerialChooserController::Close,
+                        weak_factory_.GetWeakPtr());
+}
+
+void SerialChooserController::Close() {
+  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
+  if (session) {
+    session->Emit("select-serial-port-cancelled");
+  }
+}
+
 }  // namespace electron
