@@ -7,11 +7,13 @@
 #include <utility>
 
 #include "content/public/browser/web_contents.h"
+#include "shell/browser/api/electron_api_web_contents.h"
 #include "shell/browser/serial/serial_chooser.h"
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
 #include "shell/browser/serial/serial_chooser_event_handler.h"
+#include "shell/browser/web_contents_permission_helper.h"
 
 namespace electron {
 
@@ -47,7 +49,11 @@ std::unique_ptr<content::SerialChooser> ElectronSerialDelegate::RunChooser(
 
 bool ElectronSerialDelegate::CanRequestPortPermission(
     content::RenderFrameHost* frame) {
-  return true;
+  auto* web_contents = content::WebContents::FromRenderFrameHost(frame);
+  auto* permission_helper =
+      WebContentsPermissionHelper::FromWebContents(web_contents);
+  return permission_helper->CheckSerialAccessPermission(
+      web_contents->GetMainFrame()->GetLastCommittedOrigin());
 }
 
 bool ElectronSerialDelegate::HasPortPermission(
