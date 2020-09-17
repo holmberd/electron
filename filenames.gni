@@ -303,8 +303,6 @@ filenames = {
     "shell/browser/relauncher_win.cc",
     "shell/browser/serial/electron_serial_delegate.cc",
     "shell/browser/serial/electron_serial_delegate.h",
-    "shell/browser/serial/serial_chooser.cc",
-    "shell/browser/serial/serial_chooser.h",
     "shell/browser/serial/serial_chooser_context.cc",
     "shell/browser/serial/serial_chooser_context.h",
     "shell/browser/serial/serial_chooser_context_factory.cc",

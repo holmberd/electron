@@ -8,7 +8,6 @@
 
 #include "content/public/browser/web_contents.h"
 #include "shell/browser/api/electron_api_web_contents.h"
-#include "shell/browser/serial/serial_chooser.h"
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
@@ -42,7 +41,7 @@ std::unique_ptr<content::SerialChooser> ElectronSerialDelegate::RunChooser(
   }
   controller =
       AddControllerForFrame(frame, std::move(filters), std::move(callback));
-  return std::make_unique<SerialChooser>(controller->MakeCloseClosure());
+  return nullptr;
 }
 
 bool ElectronSerialDelegate::CanRequestPortPermission(

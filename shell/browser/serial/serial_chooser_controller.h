@@ -45,7 +45,6 @@ class SerialChooserController final : public SerialChooserContext::PortObserver,
   void OnPortAdded(const device::mojom::SerialPortInfo& port) override;
   void OnPortRemoved(const device::mojom::SerialPortInfo& port) override;
   void OnPortManagerConnectionError() override;
-  base::OnceClosure MakeCloseClosure();
 
  private:
   api::Session* GetSession();
@@ -53,7 +52,6 @@ class SerialChooserController final : public SerialChooserContext::PortObserver,
   bool FilterMatchesAny(const device::mojom::SerialPortInfo& port) const;
   void RunCallback(device::mojom::SerialPortInfoPtr port);
   void OnDeviceChosen(const std::string& port_id);
-  void Close();
 
   std::vector<blink::mojom::SerialPortFilterPtr> filters_;
   content::SerialChooser::Callback callback_;
