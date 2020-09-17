@@ -12,12 +12,10 @@
 #include "base/memory/weak_ptr.h"
 #include "content/public/browser/serial_delegate.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
-#include "shell/browser/serial/serial_chooser_event_handler.h"
 
 namespace electron {
 
 class SerialChooserController;
-class SerialChooserEventHandler;
 
 class ElectronSerialDelegate : public content::SerialDelegate {
  public:
@@ -38,18 +36,19 @@ class ElectronSerialDelegate : public content::SerialDelegate {
   void RemoveObserver(content::RenderFrameHost* frame,
                       Observer* observer) override;
 
-  void DeleteHandlerForFrame(content::RenderFrameHost* render_frame_host);
+  void DeleteControllerForFrame(content::RenderFrameHost* render_frame_host);
 
  private:
-  SerialChooserEventHandler* HandlerForFrame(
+  SerialChooserController* ControllerForFrame(
       content::RenderFrameHost* render_frame_host);
-  SerialChooserEventHandler* AddHandlerForFrame(
+  SerialChooserController* AddControllerForFrame(
       content::RenderFrameHost* render_frame_host,
-      std::unique_ptr<SerialChooserController> chooser_controller);
+      std::vector<blink::mojom::SerialPortFilterPtr> filters,
+      content::SerialChooser::Callback callback);
 
   std::unordered_map<content::RenderFrameHost*,
-                     std::unique_ptr<SerialChooserEventHandler>>
-      event_handler_map_;
+                     std::unique_ptr<SerialChooserController>>
+      controller_map_;
 
   base::WeakPtrFactory<ElectronSerialDelegate> weak_factory_{this};
 

@@ -11,11 +11,14 @@
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observer.h"
+#include "base/strings/string16.h"
 #include "content/public/browser/serial_chooser.h"
 #include "content/public/browser/web_contents.h"
+#include "content/public/browser/web_contents_observer.h"
 #include "services/device/public/mojom/serial.mojom-forward.h"
+#include "shell/browser/api/electron_api_session.h"
+#include "shell/browser/serial/electron_serial_delegate.h"
 #include "shell/browser/serial/serial_chooser_context.h"
-#include "shell/browser/serial/serial_chooser_event_handler.h"
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
 
 namespace content {
@@ -24,36 +27,33 @@ class RenderFrameHost;
 
 namespace electron {
 
-class SerialChooserEventHandler;
+class ElectronSerialDelegate;
 
 // SerialChooserController provides data for the Serial API permission prompt.
-class SerialChooserController final
-    : public SerialChooserContext::PortObserver {
+class SerialChooserController final : public SerialChooserContext::PortObserver,
+                                      public content::WebContentsObserver {
  public:
   SerialChooserController(
       content::RenderFrameHost* render_frame_host,
       std::vector<blink::mojom::SerialPortFilterPtr> filters,
-      content::SerialChooser::Callback callback);
+      content::SerialChooser::Callback callback,
+      content::WebContents* web_contents,
+      base::WeakPtr<ElectronSerialDelegate> serial_delegate);
   ~SerialChooserController() override;
 
   // SerialChooserContext::PortObserver:
   void OnPortAdded(const device::mojom::SerialPortInfo& port) override;
   void OnPortRemoved(const device::mojom::SerialPortInfo& port) override;
   void OnPortManagerConnectionError() override;
-
-  void SetEventHandler(SerialChooserEventHandler* event_handler) {
-    event_handler_ = event_handler;
-  }
-  void OnDeviceChosen(const std::string& port_id);
-  void RunCallback(device::mojom::SerialPortInfoPtr port);
-
-  base::WeakPtr<SerialChooserController> GetWeakPtr() {
-    return weak_factory_.GetWeakPtr();
-  }
+  base::OnceClosure MakeCloseClosure();
 
  private:
+  api::Session* GetSession();
   void OnGetDevices(std::vector<device::mojom::SerialPortInfoPtr> ports);
   bool FilterMatchesAny(const device::mojom::SerialPortInfo& port) const;
+  void RunCallback(device::mojom::SerialPortInfoPtr port);
+  void OnDeviceChosen(const std::string& port_id);
+  void Close();
 
   std::vector<blink::mojom::SerialPortFilterPtr> filters_;
   content::SerialChooser::Callback callback_;
@@ -67,11 +67,9 @@ class SerialChooserController final
                  &SerialChooserContext::RemovePortObserver>
       observer_{this};
 
-  content::BrowserContext* browser_context_ = nullptr;
-
   std::vector<device::mojom::SerialPortInfoPtr> ports_;
 
-  SerialChooserEventHandler* event_handler_ = nullptr;
+  base::WeakPtr<ElectronSerialDelegate> serial_delegate_;
 
   base::WeakPtrFactory<SerialChooserController> weak_factory_{this};
 

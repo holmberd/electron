@@ -12,7 +12,6 @@
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "shell/browser/serial/serial_chooser_context_factory.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
-#include "shell/browser/serial/serial_chooser_event_handler.h"
 #include "shell/browser/web_contents_permission_helper.h"
 
 namespace electron {
@@ -37,14 +36,13 @@ std::unique_ptr<content::SerialChooser> ElectronSerialDelegate::RunChooser(
     content::SerialChooser::Callback callback) {
   LOG(INFO) << "In ElectronSerialDelegate::RunChooser";
 
-  SerialChooserEventHandler* handler = HandlerForFrame(frame);
-  if (handler) {
-    DeleteHandlerForFrame(frame);
+  SerialChooserController* controller = ControllerForFrame(frame);
+  if (controller) {
+    DeleteControllerForFrame(frame);
   }
-  handler = AddHandlerForFrame(
-      frame, std::make_unique<SerialChooserController>(
-                 frame, std::move(filters), std::move(callback)));
-  return std::make_unique<SerialChooser>(handler->MakeCloseClosure());
+  controller =
+      AddControllerForFrame(frame, std::move(filters), std::move(callback));
+  return std::make_unique<SerialChooser>(controller->MakeCloseClosure());
 }
 
 bool ElectronSerialDelegate::CanRequestPortPermission(
@@ -83,28 +81,30 @@ void ElectronSerialDelegate::RemoveObserver(content::RenderFrameHost* frame,
   return GetChooserContext(frame)->RemovePortObserver(observer);
 }
 
-SerialChooserEventHandler* ElectronSerialDelegate::HandlerForFrame(
+SerialChooserController* ElectronSerialDelegate::ControllerForFrame(
     content::RenderFrameHost* render_frame_host) {
-  auto mapping = event_handler_map_.find(render_frame_host);
-  return mapping == event_handler_map_.end() ? nullptr : mapping->second.get();
+  auto mapping = controller_map_.find(render_frame_host);
+  return mapping == controller_map_.end() ? nullptr : mapping->second.get();
 }
 
-SerialChooserEventHandler* ElectronSerialDelegate::AddHandlerForFrame(
+SerialChooserController* ElectronSerialDelegate::AddControllerForFrame(
     content::RenderFrameHost* render_frame_host,
-    std::unique_ptr<SerialChooserController> chooser_controller) {
+    std::vector<blink::mojom::SerialPortFilterPtr> filters,
+    content::SerialChooser::Callback callback) {
   auto* web_contents =
       content::WebContents::FromRenderFrameHost(render_frame_host);
-  auto event_handler = std::make_unique<SerialChooserEventHandler>(
-      std::move(chooser_controller), web_contents, weak_factory_.GetWeakPtr());
-  event_handler_map_.insert(
-      std::make_pair(render_frame_host, std::move(event_handler)));
-  return HandlerForFrame(render_frame_host);
+  auto controller = std::make_unique<SerialChooserController>(
+      render_frame_host, std::move(filters), std::move(callback), web_contents,
+      weak_factory_.GetWeakPtr());
+  controller_map_.insert(
+      std::make_pair(render_frame_host, std::move(controller)));
+  return ControllerForFrame(render_frame_host);
 }
 
-void ElectronSerialDelegate::DeleteHandlerForFrame(
+void ElectronSerialDelegate::DeleteControllerForFrame(
     content::RenderFrameHost* render_frame_host) {
-  LOG(INFO) << "In ElectronSerialDelegate::DeleteHandlerForFrame";
-  event_handler_map_.erase(render_frame_host);
+  LOG(INFO) << "In ElectronSerialDelegate::DeleteControllerForFrame";
+  controller_map_.erase(render_frame_host);
 }
 
 }  // namespace electron
