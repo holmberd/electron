@@ -11,11 +11,11 @@
 #include "base/macros.h"
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observer.h"
-#include "base/strings/string16.h"
 #include "content/public/browser/serial_chooser.h"
 #include "content/public/browser/web_contents.h"
 #include "services/device/public/mojom/serial.mojom-forward.h"
 #include "shell/browser/serial/serial_chooser_context.h"
+#include "shell/browser/serial/serial_chooser_event_handler.h"
 #include "third_party/blink/public/mojom/serial/serial.mojom.h"
 
 namespace content {
@@ -23,6 +23,8 @@ class RenderFrameHost;
 }  // namespace content
 
 namespace electron {
+
+class SerialChooserEventHandler;
 
 // SerialChooserController provides data for the Serial API permission prompt.
 class SerialChooserController final
@@ -38,14 +40,20 @@ class SerialChooserController final
   void OnPortAdded(const device::mojom::SerialPortInfo& port) override;
   void OnPortRemoved(const device::mojom::SerialPortInfo& port) override;
   void OnPortManagerConnectionError() override;
-  base::OnceClosure MakeCloseClosure();
+
+  void SetEventHandler(SerialChooserEventHandler* event_handler) {
+    event_handler_ = event_handler;
+  }
+  void OnDeviceChosen(const std::string& port_id);
+  void RunCallback(device::mojom::SerialPortInfoPtr port);
+
+  base::WeakPtr<SerialChooserController> GetWeakPtr() {
+    return weak_factory_.GetWeakPtr();
+  }
 
  private:
   void OnGetDevices(std::vector<device::mojom::SerialPortInfoPtr> ports);
   bool FilterMatchesAny(const device::mojom::SerialPortInfo& port) const;
-  void RunCallback(device::mojom::SerialPortInfoPtr port);
-  void OnDeviceChosen(const std::string& port_id);
-  void Close();
 
   std::vector<blink::mojom::SerialPortFilterPtr> filters_;
   content::SerialChooser::Callback callback_;
@@ -62,6 +70,8 @@ class SerialChooserController final
   content::BrowserContext* browser_context_ = nullptr;
 
   std::vector<device::mojom::SerialPortInfoPtr> ports_;
+
+  SerialChooserEventHandler* event_handler_ = nullptr;
 
   base::WeakPtrFactory<SerialChooserController> weak_factory_{this};
 

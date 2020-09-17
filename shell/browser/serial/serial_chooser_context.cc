@@ -156,10 +156,6 @@ void SerialChooserContext::OnPortManagerConnectionError() {
 
   port_info_.clear();
 
-  std::vector<std::pair<url::Origin, url::Origin>> revoked_origins;
-  revoked_origins.reserve(ephemeral_ports_.size());
-  for (const auto& map_entry : ephemeral_ports_)
-    revoked_origins.push_back(map_entry.first);
   ephemeral_ports_.clear();
 }
 

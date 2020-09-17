@@ -4,5 +4,7 @@
 
 #include "shell/browser/serial/serial_chooser.h"
 
+#include <utility>
+
 SerialChooser::SerialChooser(base::OnceClosure close_closure)
     : closure_runner_(std::move(close_closure)) {}

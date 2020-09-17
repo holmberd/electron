@@ -8,44 +8,9 @@
 #include <utility>
 
 #include "base/bind.h"
-#include "base/files/file_path.h"
-#include "base/strings/stringprintf.h"
-#include "base/strings/utf_string_conversions.h"
 #include "shell/browser/api/electron_api_session.h"
 #include "shell/browser/serial/serial_chooser_context.h"
 #include "shell/browser/serial/serial_chooser_context_factory.h"
-#include "shell/common/gin_converters/callback_converter.h"
-#include "shell/common/gin_helper/dictionary.h"
-#include "ui/base/l10n/l10n_util.h"
-
-namespace gin {
-
-template <>
-struct Converter<device::mojom::SerialPortInfoPtr> {
-  static v8::Local<v8::Value> ToV8(
-      v8::Isolate* isolate,
-      const device::mojom::SerialPortInfoPtr& port) {
-    gin_helper::Dictionary dict = gin::Dictionary::CreateEmpty(isolate);
-    dict.Set("portId", port->token.ToString());
-    dict.Set("portName", port->path.BaseName().LossyDisplayName());
-    if (port->display_name && !port->display_name->empty()) {
-      dict.Set("displayName", *port->display_name);
-    }
-    if (port->persistent_id && !port->persistent_id->empty()) {
-      dict.Set("persistentId", *port->persistent_id);
-    }
-    if (port->has_vendor_id) {
-      dict.Set("vendorId", base::StringPrintf("%u", port->vendor_id));
-    }
-    if (port->has_product_id) {
-      dict.Set("productId", base::StringPrintf("%u", port->product_id));
-    }
-
-    return gin::ConvertToV8(isolate, dict);
-  }
-};
-
-}  // namespace gin
 
 namespace electron {
 
@@ -54,6 +19,7 @@ SerialChooserController::SerialChooserController(
     std::vector<blink::mojom::SerialPortFilterPtr> filters,
     content::SerialChooser::Callback callback)
     : filters_(std::move(filters)), callback_(std::move(callback)) {
+  LOG(INFO) << "In SerialChooserController::SerialChooserController";
   auto* web_contents =
       content::WebContents::FromRenderFrameHost(render_frame_host);
   requesting_origin_ = render_frame_host->GetLastCommittedOrigin();
@@ -70,18 +36,15 @@ SerialChooserController::SerialChooserController(
 }
 
 SerialChooserController::~SerialChooserController() {
+  LOG(INFO) << "In SerialChooserController::~SerialChooserController";
   RunCallback(/*port=*/nullptr);
 }
 
 void SerialChooserController::OnPortAdded(
     const device::mojom::SerialPortInfo& port) {
   ports_.push_back(port.Clone());
-  if (!browser_context_) {
-    return;
-  }
-  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
-  if (session) {
-    session->Emit("serial-port-added", port.Clone());
+  if (event_handler_) {
+    event_handler_->OnPortAdded(port.Clone());
   }
 }
 
@@ -91,10 +54,8 @@ void SerialChooserController::OnPortRemoved(
       ports_.begin(), ports_.end(),
       [&port](const auto& ptr) { return ptr->token == port.token; });
   if (it != ports_.end()) {
-    auto* session =
-        electron::api::Session::FromBrowserContext(browser_context_);
-    if (session) {
-      session->Emit("serial-port-removed", port.Clone());
+    if (event_handler_) {
+      event_handler_->OnPortRemoved(port.Clone());
     }
     ports_.erase(it);
   }
@@ -120,6 +81,7 @@ void SerialChooserController::OnDeviceChosen(const std::string& port_id) {
 
 void SerialChooserController::OnGetDevices(
     std::vector<device::mojom::SerialPortInfoPtr> ports) {
+  LOG(INFO) << "In SerialChooserController::OnGetDevices";
   // Sort ports by file paths.
   std::sort(ports.begin(), ports.end(),
             [](const auto& port1, const auto& port2) {
@@ -131,16 +93,9 @@ void SerialChooserController::OnGetDevices(
       ports_.push_back(std::move(port));
   }
 
-  bool prevent_default = false;
-  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
-  if (session) {
-    prevent_default =
-        session->Emit("select-serial-port", ports_,
-                      base::AdaptCallbackForRepeating(base::BindOnce(
-                          &SerialChooserController::OnDeviceChosen,
-                          weak_factory_.GetWeakPtr())));
-  }
-  if (!prevent_default) {
+  if (event_handler_) {
+    event_handler_->SerialChooserEventHandler::OnGetDevices(ports_);
+  } else {
     RunCallback(/*port=*/nullptr);
   }
 }
@@ -169,18 +124,6 @@ void SerialChooserController::RunCallback(
     device::mojom::SerialPortInfoPtr port) {
   if (callback_) {
     std::move(callback_).Run(std::move(port));
-  }
-}
-
-base::OnceClosure SerialChooserController::MakeCloseClosure() {
-  return base::BindOnce(&SerialChooserController::Close,
-                        weak_factory_.GetWeakPtr());
-}
-
-void SerialChooserController::Close() {
-  auto* session = electron::api::Session::FromBrowserContext(browser_context_);
-  if (session) {
-    session->Emit("select-serial-port-cancelled");
   }
 }
 

@@ -6,12 +6,18 @@
 #define SHELL_BROWSER_SERIAL_ELECTRON_SERIAL_DELEGATE_H_
 
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
+#include "base/memory/weak_ptr.h"
 #include "content/public/browser/serial_delegate.h"
 #include "shell/browser/serial/serial_chooser_controller.h"
+#include "shell/browser/serial/serial_chooser_event_handler.h"
 
 namespace electron {
+
+class SerialChooserController;
+class SerialChooserEventHandler;
 
 class ElectronSerialDelegate : public content::SerialDelegate {
  public:
@@ -32,8 +38,20 @@ class ElectronSerialDelegate : public content::SerialDelegate {
   void RemoveObserver(content::RenderFrameHost* frame,
                       Observer* observer) override;
 
+  void DeleteHandlerForFrame(content::RenderFrameHost* render_frame_host);
+
  private:
-  std::unique_ptr<SerialChooserController> chooser_controller_;
+  SerialChooserEventHandler* HandlerForFrame(
+      content::RenderFrameHost* render_frame_host);
+  SerialChooserEventHandler* AddHandlerForFrame(
+      content::RenderFrameHost* render_frame_host,
+      std::unique_ptr<SerialChooserController> chooser_controller);
+
+  std::unordered_map<content::RenderFrameHost*,
+                     std::unique_ptr<SerialChooserEventHandler>>
+      event_handler_map_;
+
+  base::WeakPtrFactory<ElectronSerialDelegate> weak_factory_{this};
 
   DISALLOW_COPY_AND_ASSIGN(ElectronSerialDelegate);
 };
