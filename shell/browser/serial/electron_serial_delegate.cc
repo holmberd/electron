@@ -1,5 +1,5 @@
-// Copyright 2019 The Chromium Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
+// Copyright (c) 2020 Microsoft, Inc.
+// Use of this source code is governed by the MIT license that can be
 // found in the LICENSE file.
 
 #include "shell/browser/serial/electron_serial_delegate.h"
@@ -21,20 +21,14 @@ SerialChooserContext* GetChooserContext(content::RenderFrameHost* frame) {
   return SerialChooserContextFactory::GetForBrowserContext(browser_context);
 }
 
-ElectronSerialDelegate::ElectronSerialDelegate() {
-  LOG(INFO) << "In ElectronSerialDelegate::ElectronSerialDelegate";
-}
+ElectronSerialDelegate::ElectronSerialDelegate() = default;
 
-ElectronSerialDelegate::~ElectronSerialDelegate() {
-  LOG(INFO) << "In ElectronSerialDelegate::~ElectronSerialDelegate";
-}
+ElectronSerialDelegate::~ElectronSerialDelegate() = default;
 
 std::unique_ptr<content::SerialChooser> ElectronSerialDelegate::RunChooser(
     content::RenderFrameHost* frame,
     std::vector<blink::mojom::SerialPortFilterPtr> filters,
     content::SerialChooser::Callback callback) {
-  LOG(INFO) << "In ElectronSerialDelegate::RunChooser";
-
   SerialChooserController* controller = ControllerForFrame(frame);
   if (controller) {
     DeleteControllerForFrame(frame);
@@ -102,7 +96,6 @@ SerialChooserController* ElectronSerialDelegate::AddControllerForFrame(
 
 void ElectronSerialDelegate::DeleteControllerForFrame(
     content::RenderFrameHost* render_frame_host) {
-  LOG(INFO) << "In ElectronSerialDelegate::DeleteControllerForFrame";
   controller_map_.erase(render_frame_host);
 }
 
